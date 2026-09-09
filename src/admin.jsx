@@ -1728,29 +1728,29 @@ function Management({ section }) {
           title={
             section === "products"
               ? edit.id
-                ? "Edit " + edit.name
-                : "A new kind of comfort"
+                ? "Edit Product"
+                : "Add New Product"
               : section === "orders"
                 ? `Order ${edit.id}`
                 : section === "inventory"
-                  ? `Adjust ${edit.name}`
+                  ? `Adjust Stock — ${edit.name}`
                   : section === "content"
-                    ? "Your content studio"
+                    ? "Edit Content"
                     : section === "audit"
-                      ? "A clear record"
+                      ? "Audit Details"
                       : section === "staff"
                         ? edit.id
-                          ? "Team member details"
-                          : "Welcome someone new"
+                          ? "Edit Team Member"
+                          : "Add Team Member"
                         : section === "customers"
-                          ? "A little about your customer"
+                          ? "Customer Details"
                           : section === "reviews"
-                            ? "Listen. Respond. Build trust."
+                            ? "Review Details"
                             : section === "support"
-                              ? edit.subject
+                              ? edit.subject || "Support Ticket"
                               : section === "categories"
-                                ? "A new collection"
-                                : "Create a little extra value"
+                                ? edit.id ? "Edit Category" : "Add Category"
+                                : edit.id ? "Edit Coupon" : "Create Coupon"
           }
           onClose={() => setEdit(null)}
         >
