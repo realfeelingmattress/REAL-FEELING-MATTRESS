@@ -84,7 +84,8 @@ import {
   ThemeSelect,
 } from "./core";
 import { LoginForm, downloadInvoice } from "./commerce";
-import { MediaUpload } from "./media-upload";
+import { MediaUpload, MultiImageUpload } from "./media-upload";
+import { SizePriceGrid } from "./size-price-grid";
 import { OrderReceipt } from "./order-documents";
 const sections = [
   ["dashboard", "Overview", LayoutDashboard],
@@ -93,14 +94,14 @@ const sections = [
   ["orders", "Orders", ShoppingBag],
   ["customers", "Customers", Users],
   ["reviews", "Reviews", Star],
-  ["coupons", "Coupons & offers", Tag],
-  ["content", "Content studio", FileText],
+  ["coupons", "Coupons", Tag],
+  ["content", "Content", FileText],
   ["categories", "Categories", Layers],
   ["analytics", "Analytics", ChartNoAxesCombined],
-  ["support", "Support inbox", MessageSquare],
-  ["staff", "Team & permissions", UserCog],
+  ["support", "Support", MessageSquare],
+  ["staff", "Team", UserCog],
   ["security", "Security", ShieldCheck],
-  ["audit", "Audit log", ScrollText],
+  ["audit", "Audit Log", ScrollText],
   ["settings", "Settings", Settings],
 ];
 function allowed(boot, s) {
@@ -190,16 +191,23 @@ export default function Admin() {
           </div>
           <span className="live-dot" />
         </div>
-        <span className="admin-nav-label">YOUR WORKSPACE</span>
         <nav aria-label="Owner navigation">
+          <span className="admin-nav-label">OVERVIEW</span>
           {sections
             .filter(([s]) => allowed(boot, s))
             .map(([s, label, Icon], i) => (
               <React.Fragment key={s}>
+                {s === "products" && (
+                  <span className="admin-nav-label">CATALOG</span>
+                )}
+                {s === "content" && (
+                  <span className="admin-nav-label">MARKETING</span>
+                )}
+                {s === "support" && (
+                  <span className="admin-nav-label">CUSTOMER CARE</span>
+                )}
                 {s === "staff" && (
-                  <span className="admin-nav-label bottom-label">
-                    STORE MANAGEMENT
-                  </span>
+                  <span className="admin-nav-label">ADMIN</span>
                 )}
                 <NavLink
                   to={"/owner/" + s}
@@ -207,7 +215,6 @@ export default function Admin() {
                 >
                   <Icon size={18} strokeWidth={1.6} />
                   <span>{label}</span>
-                  {s === "support" && <i className="nav-new-dot" />}
                 </NavLink>
               </React.Fragment>
             ))}
@@ -538,6 +545,43 @@ function Dashboard({ analytics = false }) {
           </div>
         ))}
       </div>
+      {/* Quick Actions */}
+      {!analytics && (
+        <div className="quick-actions-row">
+          <Link to="/owner/products" className="quick-action-card">
+            <div className="qa-icon qa-green"><Package size={20} /></div>
+            <div>
+              <strong>Add Product</strong>
+              <span>Create a new listing</span>
+            </div>
+            <ArrowRight size={16} />
+          </Link>
+          <Link to="/owner/orders" className="quick-action-card">
+            <div className="qa-icon qa-blue"><ShoppingBag size={20} /></div>
+            <div>
+              <strong>View Orders</strong>
+              <span>{data.pending} need attention</span>
+            </div>
+            <ArrowRight size={16} />
+          </Link>
+          <Link to="/owner/inventory" className="quick-action-card">
+            <div className="qa-icon qa-orange"><Boxes size={20} /></div>
+            <div>
+              <strong>Stock Check</strong>
+              <span>{data.lowStock.length} running low</span>
+            </div>
+            <ArrowRight size={16} />
+          </Link>
+          <Link to="/owner/settings" className="quick-action-card">
+            <div className="qa-icon qa-purple"><Settings size={20} /></div>
+            <div>
+              <strong>Store Settings</strong>
+              <span>Update your details</span>
+            </div>
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+      )}
       <div className="dashboard-charts">
         <section className="admin-panel revenue-panel">
           <div className="panel-heading">
@@ -907,7 +951,8 @@ function Management({ section }) {
     [edit, setEdit] = useState(null),
     [busy, setBusy] = useState(false),
     [selected, setSelected] = useState([]),
-    [history, setHistory] = useState(null);
+    [history, setHistory] = useState(null),
+    [view, setView] = useState("table");
   useEffect(() => {
     setPage(1);
   }, [query, filter]);
@@ -930,7 +975,9 @@ function Management({ section }) {
         (section === "products"
           ? filter === "Active"
             ? r.active
-            : !r.active
+            : filter === "Archived"
+              ? !r.active
+              : true
           : section === "inventory"
             ? filter === "Low stock"
               ? r.stock < 20
@@ -1003,12 +1050,13 @@ function Management({ section }) {
       const b = {
         ...(edit.id ? edit : {}),
         ...(edit.draftId ? { draftId: edit.draftId } : {}),
-        ...(edit.id ? { expectedStock: edit.stock } : {}),
+        ...(edit.id ? { expectedStock: edit.stock || 0 } : {}),
         ...(edit.images ? { images: edit.images } : {}),
+        ...(edit.variants ? { variants: edit.variants } : {}),
         ...f,
-        price: +f.price,
-        original_price: +f.original_price,
-        stock: +f.stock,
+        price: f.price ? +f.price : 0,
+        original_price: f.original_price ? +f.original_price : null,
+        stock: f.stock ? +f.stock : 0,
         active: +f.active,
       };
       await action(
@@ -1086,18 +1134,24 @@ function Management({ section }) {
                 <div>
                   <strong>{r.name}</strong>
                   <small>
-                    {r.category} · {r.firmness}
+                    {r.category}{r.badge ? ` · ${r.badge}` : ""}
                   </small>
                 </div>
               </div>
             </td>
             <td>
               <strong>{money(r.price)}</strong>
-              <small className="strike">{money(r.original_price)}</small>
+              {r.original_price ? (
+                <small className="strike">{money(r.original_price)}</small>
+              ) : null}
             </td>
             <td>
-              <span className={r.stock < 20 ? "stock-low" : ""}>
-                {r.stock} in stock
+              <span className={r.stock <= 5 ? "stock-low" : r.stock <= 0 ? "stock-out" : ""}>
+                {r.stock === 0
+                  ? "Out of stock"
+                  : r.stock <= 5
+                    ? `Only ${r.stock} left`
+                    : `${r.stock} in stock`}
               </span>
             </td>
             <td>
@@ -1370,6 +1424,26 @@ function Management({ section }) {
         </div>
       )}
       <section className="admin-panel management-panel">
+        {section === "products" && (
+          <div className="product-filter-tabs">
+            {["All", "Active", "Archived"].map((tab) => (
+              <button
+                key={tab}
+                className={`filter-tab ${filter === tab ? "active" : ""}`}
+                onClick={() => setFilter(tab)}
+              >
+                {tab}
+                <span className="tab-count">
+                  {tab === "All"
+                    ? data.length
+                    : tab === "Active"
+                      ? data.filter((d) => d.active).length
+                      : data.filter((d) => !d.active).length}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="management-toolbar">
           <div className="search-input">
             <Search size={17} />
@@ -1386,6 +1460,24 @@ function Management({ section }) {
             )}
           </div>
           <div>
+            {section === "products" && (
+              <div className="view-toggle">
+                <button
+                  className={view === "table" ? "active" : ""}
+                  onClick={() => setView("table")}
+                  title="Table view"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="3" rx="1" fill="currentColor"/><rect x="1" y="6.5" width="14" height="3" rx="1" fill="currentColor"/><rect x="1" y="12" width="14" height="3" rx="1" fill="currentColor"/></svg>
+                </button>
+                <button
+                  className={view === "grid" ? "active" : ""}
+                  onClick={() => setView("grid")}
+                  title="Card view"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/></svg>
+                </button>
+              </div>
+            )}
             <select
               aria-label="Filter records"
               value={filter}
@@ -1431,6 +1523,53 @@ function Management({ section }) {
             <button onClick={() => setSelected([])}>Clear selection</button>
           </div>
         )}
+        {section === "products" && view === "grid" ? (
+          <div className="product-card-grid">
+            {visible.map((r) => (
+              <div
+                key={r.id}
+                className="product-card"
+                onClick={async () => {
+                  try {
+                    const detail = await api("/products/" + r.id);
+                    setEdit({ ...r, ...detail });
+                  } catch {
+                    setEdit(r);
+                  }
+                }}
+              >
+                <div className="product-card-img">
+                  <img src={r.image} alt={r.name} />
+                  {!r.active && <span className="card-archived-badge">Archived</span>}
+                  {r.badge && <span className="card-badge">{r.badge}</span>}
+                </div>
+                <div className="product-card-body">
+                  <h4>{r.name}</h4>
+                  <p className="card-subtitle">{r.subtitle || r.category}</p>
+                  <div className="card-price-row">
+                    <strong>{money(r.price)}</strong>
+                    {r.original_price ? (
+                      <span className="card-mrp">{money(r.original_price)}</span>
+                    ) : null}
+                  </div>
+                  <div className="card-meta">
+                    <span className={`card-stock ${r.stock <= 0 ? "out" : r.stock <= 5 ? "low" : "ok"}`}>
+                      {r.stock <= 0 ? "Out of stock" : r.stock <= 5 ? `Only ${r.stock} left` : `${r.stock} in stock`}
+                    </span>
+                    <Status value={r.active ? "Active" : "Archived"} />
+                  </div>
+                </div>
+              </div>
+            ))}
+            {visible.length === 0 && (
+              <div className="product-card-empty">
+                <Package size={40} />
+                <h3>No products found</h3>
+                <p>Try a different search or filter.</p>
+              </div>
+            )}
+          </div>
+        ) : (
         <div className="table-wrap">
           <table
             className={
@@ -1525,7 +1664,19 @@ function Management({ section }) {
                       ) : (
                         <button
                           className="small-btn"
-                          onClick={() => setEdit(r)}
+                          onClick={async () => {
+                            if (section === "products" && r.id) {
+                              // Fetch full product with variants
+                              try {
+                                const detail = await api("/products/" + r.id);
+                                setEdit({ ...r, ...detail });
+                              } catch {
+                                setEdit(r);
+                              }
+                            } else {
+                              setEdit(r);
+                            }
+                          }}
                         >
                           {["orders", "customers", "staff", "support"].includes(
                             section,
@@ -1544,7 +1695,8 @@ function Management({ section }) {
             </tbody>
           </table>
         </div>
-        {!visible.length && (
+        )}
+        {!visible.length && view === "table" && (
           <Empty
             icon={Search}
             title="Nothing matches just yet."
@@ -1605,107 +1757,28 @@ function Management({ section }) {
           <form className="form-stack admin-editor" onSubmit={save}>
             {section === "products" && (
               <>
-                <MediaUpload
-                  label="Main product image"
+                <MultiImageUpload
+                  images={edit.images || (edit.image ? [edit.image] : [])}
+                  mainImage={edit.image || ""}
+                  maxImages={15}
                   purpose="product"
                   entityId={edit.id || edit.draftId}
                   assetName={(input) =>
-                    input.form?.elements.namedItem("name")?.value ||
+                    input.form?.elements?.namedItem?.("name")?.value ||
                     edit.name ||
                     "New product"
                   }
-                  value={edit.image || "/images/essential.webp"}
                   disabled={busy}
                   onBusy={setBusy}
-                  onChange={(r) =>
+                  onChange={(newImages, newMain) =>
                     setEdit((old) => ({
                       ...old,
-                      draftId: old.id ? undefined : r.entityId,
-                      image: r.url,
-                      images: [
-                        r.url,
-                        ...(old.images || []).filter(
-                          (url) => url !== old.image && url !== r.url,
-                        ),
-                      ],
+                      draftId: old.id ? undefined : old.draftId,
+                      image: newMain,
+                      images: newImages,
                     }))
                   }
                 />
-                <details className="product-gallery-editor">
-                  <summary>
-                    Product gallery · {edit.images?.length || 1} images
-                  </summary>
-                  <div className="gallery-editor-grid">
-                    {(
-                      edit.images || [edit.image || "/images/essential.webp"]
-                    ).map((url, index) => (
-                      <div key={url}>
-                        <img src={url} alt={"Gallery image " + (index + 1)} />
-                        <button
-                          type="button"
-                          className="text-link"
-                          onClick={() =>
-                            setEdit((old) => ({
-                              ...old,
-                              image: url,
-                              images: [
-                                url,
-                                ...(old.images || []).filter((u) => u !== url),
-                              ],
-                            }))
-                          }
-                        >
-                          Make main
-                        </button>
-                        {url !== edit.image && (
-                          <button
-                            type="button"
-                            className="text-link"
-                            onClick={() =>
-                              setEdit((old) => ({
-                                ...old,
-                                images: old.images.filter((u) => u !== url),
-                              }))
-                            }
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {(edit.images?.length || 0) < 12 && (
-                    <MediaUpload
-                      label="Gallery image"
-                      purpose="product"
-                      entityId={edit.id || edit.draftId}
-                      assetName={(input) =>
-                        input.form?.elements.namedItem("name")?.value ||
-                        edit.name ||
-                        "New product"
-                      }
-                      disabled={busy}
-                      onBusy={setBusy}
-                      onChange={(r) =>
-                        setEdit((old) => ({
-                          ...old,
-                          draftId: old.id ? undefined : r.entityId,
-                          images: [
-                            ...(old.images || [
-                              old.image || "/images/essential.webp",
-                            ]),
-                            r.url,
-                          ],
-                        }))
-                      }
-                    />
-                  )}
-                  <p className="fine-print">
-                    Save to publish. Removing an image here only removes its
-                    shop reference; it does not delete the hosted file from
-                    ImgBB.
-                  </p>
-                </details>
                 <input
                   type="hidden"
                   name="image"
@@ -1720,26 +1793,9 @@ function Management({ section }) {
                     defaultValue={edit.name}
                   />
                   <Field
-                    label="Short description"
+                    label="Short description (optional)"
                     name="subtitle"
                     defaultValue={edit.subtitle}
-                    required
-                  />
-                  <Field
-                    label="Sale price (INR)"
-                    name="price"
-                    type="number"
-                    min={1}
-                    defaultValue={edit.price}
-                    required
-                  />
-                  <Field
-                    label="Original price (INR)"
-                    name="original_price"
-                    type="number"
-                    min={1}
-                    defaultValue={edit.original_price}
-                    required
                   />
                   <Field label="Category">
                     <select
@@ -1751,47 +1807,30 @@ function Management({ section }) {
                       ))}
                     </select>
                   </Field>
-                  <Field
-                    label="Materials"
-                    name="material"
-                    defaultValue={edit.material || "Adaptive memory foam"}
-                    required
-                    minLength={2}
-                  />
-                  <Field label="Comfort feel">
-                    <select
-                      name="firmness"
-                      defaultValue={edit.firmness || "Medium"}
-                    >
-                      {["Soft", "Medium", "Firm"].map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
+                  <Field label="Materials">
+                    <input
+                      name="material"
+                      defaultValue={edit.material || "Memory foam"}
+                      placeholder="e.g. Memory foam, Latex"
+                    />
                   </Field>
-                  <Field label="Base height">
-                    <select
-                      name="thickness"
-                      defaultValue={edit.thickness || "8"}
-                    >
-                      {["1", "6", "8", "10"].map((s) => (
-                        <option key={s} value={s}>
-                          {s === "1" ? "Standard accessory" : s + " inches"}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field
-                    label="Stock on hand"
-                    name="stock"
-                    type="number"
-                    min={0}
-                    defaultValue={edit.stock ?? 0}
-                    required
-                  />
+                </div>
+
+                {/* Size & Price Grid */}
+                <SizePriceGrid
+                  variants={edit.variants || []}
+                  disabled={busy}
+                  onChange={(newVariants) =>
+                    setEdit((old) => ({ ...old, variants: newVariants }))
+                  }
+                />
+
+                <div className="form-grid">
                   <Field
                     label="Product badge"
                     name="badge"
                     defaultValue={edit.badge || ""}
+                    placeholder="e.g. Bestseller, New"
                   />
                   <Field label="Visibility">
                     <select name="active" defaultValue={edit.active ?? 1}>
@@ -1805,17 +1844,9 @@ function Management({ section }) {
                     rows={4}
                     name="description"
                     defaultValue={edit.description || ""}
+                    placeholder="Describe the product in detail..."
                   />
                 </Field>
-                <div className="admin-info-note">
-                  <Layers size={17} />
-                  <span>
-                    36 size/height/firmness combinations are generated for
-                    mattresses; accessories use one standard variant. Prices
-                    come from the Queen base price. Shared stock is deducted
-                    transactionally when an order is placed.
-                  </span>
-                </div>
                 {edit.id && (
                   <div className="editor-actions">
                     <button

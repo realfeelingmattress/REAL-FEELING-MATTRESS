@@ -665,3 +665,31 @@ if (autoSetup) {
     )
     .run();
 }
+
+// ── Cloud-safe additive migrations (run on EVERY startup, including Vercel) ──
+// These only ADD missing columns/indexes — they never modify existing data.
+// This ensures Vercel deployments don't crash with "undefined column" errors.
+if (db.kind === "postgres") {
+  try {
+    // Add missing columns to users table
+    await db.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT DEFAULT ''");
+    await db.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT");
+    await db.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_only BIGINT DEFAULT 0");
+
+    // Add missing column to orders table
+    await db.exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS summary TEXT DEFAULT '{}'");
+
+    // Add Google subject index
+    await db.exec(
+      "CREATE UNIQUE INDEX IF NOT EXISTS users_google_subject ON users(google_sub) WHERE google_sub IS NOT NULL",
+    );
+
+    // Ensure cloud prepared flag
+    await db.exec(
+      "INSERT INTO settings(id,value) VALUES('_cloudPreparedV1','\"true\"') ON CONFLICT(id) DO NOTHING",
+    );
+  } catch (migrationError) {
+    // Log but don't crash — individual queries will fail with clear errors
+    console.error("Cloud migration warning:", migrationError.message);
+  }
+}

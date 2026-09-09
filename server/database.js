@@ -42,6 +42,7 @@ if (databaseKind === "postgres") {
     "sslkey",
     "sslrootcert",
     "uselibpqcompat",
+    "channel_binding",
   ])
     url.searchParams.delete(key);
   pool = new Pool({

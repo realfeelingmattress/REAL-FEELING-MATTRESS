@@ -1232,25 +1232,36 @@ app.get(
 const productSchema = z
   .object({
     name: z.string().trim().min(2).max(120),
-    subtitle: z.string().max(200),
+    subtitle: z.string().max(200).optional().default(""),
     description: z.string().max(10000),
-    price: z.number().int().min(1).max(10000000),
-    original_price: z.number().int().min(1).max(10000000),
+    price: z.number().int().min(1).max(10000000).optional().default(0),
+    original_price: z.number().int().min(1).max(10000000).optional().nullable(),
     category: z.string().min(1),
     material: z.string().min(2).max(120),
-    firmness: z.enum(["Soft", "Medium", "Firm"]),
-    thickness: z.enum(["1", "6", "8", "10"]),
+    firmness: z.enum(["Soft", "Medium", "Firm"]).optional().default("Medium"),
+    thickness: z.enum(["1", "4", "6", "8", "10"]).optional().default("6"),
     image: z
       .string()
       .refine(validImageUrl, "Use a local shop image or HTTPS ImgBB image."),
-    images: z.array(z.string().refine(validImageUrl)).max(12).optional(),
+    images: z.array(z.string().refine(validImageUrl)).max(15).optional(),
+    variants: z
+      .array(
+        z.object({
+          size: z.string(),
+          thickness: z.string(),
+          price: z.number().int().min(1).max(10000000),
+          original_price: z.number().int().min(1).max(10000000).optional().nullable(),
+          stock: z.number().int().min(0).optional().nullable(),
+        }),
+      )
+      .optional(),
     draftId: z.string().uuid().optional(),
     expectedStock: z.number().int().min(0).optional(),
-    stock: z.number().int().min(0).max(100000),
+    stock: z.number().int().min(0).max(100000).optional().default(0),
     badge: z.string().max(40),
     active: z.number().int().min(0).max(1),
   })
-  .refine((b) => b.original_price >= b.price, {
+  .refine((b) => !b.original_price || b.original_price >= b.price, {
     message: "Original price must not be lower than the sale price.",
   });
 app.post("/api/admin/products", can("products"), async (req, res) => {
@@ -1295,13 +1306,14 @@ app.post("/api/admin/products", can("products"), async (req, res) => {
         b.badge,
         b.active,
       );
-    for (const [size, m] of [
-      ["Single", 0.65],
-      ["Double", 0.85],
-      ["Queen", 1],
-      ["King", 1.2],
-    ])
-      for (const t of ["6", "8", "10"])
+    // Use client-provided variants or auto-generate from base price
+    const clientVariants = b.variants?.length
+      ? b.variants
+      : null;
+
+    if (clientVariants) {
+      // Save client-provided size/thickness variants
+      for (const v of clientVariants) {
         await db
           .prepare(
             "INSERT INTO variants(id,product_id,size,thickness,firmness,price,stock) VALUES(?,?,?,?,?,?,?)",
@@ -1309,16 +1321,32 @@ app.post("/api/admin/products", can("products"), async (req, res) => {
           .run(
             uid(),
             id,
-            size,
-            t,
+            v.size,
+            v.thickness,
             b.firmness,
-            Math.max(1, Math.round(b.price * m + (+t - +b.thickness) * 900)),
-            b.stock,
+            v.price,
+            v.stock ?? b.stock,
           );
-    await syncVariants({
-      ...b,
-      id,
-    });
+      }
+      // Set product base price to the lowest variant price
+      const minPrice = Math.min(...clientVariants.map((v) => v.price));
+      const minOriginal = clientVariants
+        .filter((v) => v.original_price)
+        .map((v) => v.original_price);
+      await db
+        .prepare("UPDATE products SET price=?,original_price=? WHERE id=?")
+        .run(
+          minPrice,
+          minOriginal.length ? Math.min(...minOriginal) : null,
+          id,
+        );
+    } else {
+      // Fallback: auto-generate variants from base price
+      await syncVariants({
+        ...b,
+        id,
+      });
+    }
     await db
       .prepare("UPDATE products SET images=?,rating=0,reviews=0 WHERE id=?")
       .run(JSON.stringify(b.images?.length ? b.images : [b.image]), id);
@@ -1370,24 +1398,58 @@ app.patch("/api/admin/products/:id", can("products"), async (req, res) => {
         ),
         { status: 409, expose: true },
       );
-    for (const [size, m] of [
-      ["Single", 0.65],
-      ["Double", 0.85],
-      ["Queen", 1],
-      ["King", 1.2],
-    ])
-      for (const t of ["6", "8", "10"])
+    // Update variants from client or auto-recalculate
+    if (b.variants?.length) {
+      // Remove old variants and insert new ones
+      await db.prepare("DELETE FROM variants WHERE product_id=?").run(old.id);
+      for (const v of b.variants) {
         await db
           .prepare(
-            "UPDATE variants SET price=?,firmness=? WHERE product_id=? AND size=? AND thickness=?",
+            "INSERT INTO variants(id,product_id,size,thickness,firmness,price,stock) VALUES(?,?,?,?,?,?,?)",
           )
           .run(
-            Math.max(1, Math.round(b.price * m + (+t - +b.thickness) * 900)),
-            b.firmness,
+            uid(),
             old.id,
-            size,
-            t,
+            v.size,
+            v.thickness,
+            b.firmness,
+            v.price,
+            v.stock ?? old.stock,
           );
+      }
+      // Update product base price to lowest variant
+      const minPrice = Math.min(...b.variants.map((v) => v.price));
+      const minOriginal = b.variants
+        .filter((v) => v.original_price)
+        .map((v) => v.original_price);
+      await db
+        .prepare("UPDATE products SET price=?,original_price=? WHERE id=?")
+        .run(
+          minPrice,
+          minOriginal.length ? Math.min(...minOriginal) : null,
+          old.id,
+        );
+    } else {
+      // Fallback: auto-update variant prices from base price
+      for (const [size, m] of [
+        ["Single", 0.65],
+        ["Double", 0.85],
+        ["Queen", 1],
+        ["King", 1.2],
+      ])
+        for (const t of ["6", "8", "10"])
+          await db
+            .prepare(
+              "UPDATE variants SET price=?,firmness=? WHERE product_id=? AND size=? AND thickness=?",
+            )
+            .run(
+              Math.max(1, Math.round(b.price * m + (+t - +b.thickness) * 900)),
+              b.firmness,
+              old.id,
+              size,
+              t,
+            );
+    }
     if (old.stock !== b.stock)
       await db
         .prepare(

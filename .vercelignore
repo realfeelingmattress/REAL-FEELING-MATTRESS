@@ -1,0 +1,14 @@
+# Exclude from Vercel deployment
+data/
+qa/
+scripts/
+*.test.js
+*.test.mjs
+*.sqlite
+*.sqlite-wal
+.env
+.env.local
+.env.*.local
+CLOUD-QA.md
+audit-dependencies.json
+README.md
