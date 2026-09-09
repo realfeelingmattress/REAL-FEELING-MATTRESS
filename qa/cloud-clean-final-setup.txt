@@ -1,0 +1,8 @@
+
+> real-feeling-mattress@1.0.0 db:setup
+> node scripts/setup-database.mjs
+
+Schema migrated. Owner created. Existing records preserved.
+No demo customers, orders, reviews, products or coupons were inserted. Policy drafts remain unpublished.
+Add actual categories/products, review shipping/tax/policies, and confirm launch readiness in /owner.
+OWNER_EMAIL and OWNER_PASSWORD are one-time setup variables; remove them from your shell afterward. They are not needed in Vercel.

@@ -1,0 +1,2 @@
+PASS isolated traced function imports and serves PostgreSQL bootstrap; Sharp works; no Vite/SQLite/data directory present. Node v22.23.2
+

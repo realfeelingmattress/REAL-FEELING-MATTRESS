@@ -1,0 +1,130 @@
+TAP version 13
+# Subtest: Public catalog contains all products and valid priced variants
+ok 1 - Public catalog contains all products and valid priced variants
+  ---
+  duration_ms: 2448.627401
+  ...
+# Subtest: Guests and customers cannot access owner data or mutate products
+ok 2 - Guests and customers cannot access owner data or mutate products
+  ---
+  duration_ms: 63.425626
+  ...
+# Subtest: CSRF tokens are checked for mutations
+ok 3 - CSRF tokens are checked for mutations
+  ---
+  duration_ms: 30.209943
+  ...
+# Subtest: Passwords and session secrets are not exposed by customer/staff APIs
+ok 4 - Passwords and session secrets are not exposed by customer/staff APIs
+  ---
+  duration_ms: 60.002474
+  ...
+# Subtest: Checkout never trusts browser prices, and validates coupons
+ok 5 - Checkout never trusts browser prices, and validates coupons
+  ---
+  duration_ms: 57.412694
+  ...
+# Subtest: Accessories have a valid Standard checkout variant
+ok 6 - Accessories have a valid Standard checkout variant
+  ---
+  duration_ms: 20.985199
+  ...
+# Subtest: Creating an order updates stock, stores no payment details, and is idempotent
+ok 7 - Creating an order updates stock, stores no payment details, and is idempotent
+  ---
+  duration_ms: 121.241819
+  ...
+# Subtest: Tracking requires matching email; customers cannot see each other’s orders
+ok 8 - Tracking requires matching email; customers cannot see each other’s orders
+  ---
+  duration_ms: 34.826482
+  ...
+# Subtest: Concurrent customers cannot both purchase the final unit
+ok 9 - Concurrent customers cannot both purchase the final unit
+  ---
+  duration_ms: 803.01707
+  ...
+# Subtest: Cancelling an order restores stock exactly once and prevents reopening
+ok 10 - Cancelling an order restores stock exactly once and prevents reopening
+  ---
+  duration_ms: 53.378495
+  ...
+# Subtest: Only a delivered purchaser may review a product; moderation is server-protected
+ok 11 - Only a delivered purchaser may review a product; moderation is server-protected
+  ---
+  duration_ms: 49.129162
+  ...
+# Subtest: Inventory and product validation reject negative stock and price
+ok 12 - Inventory and product validation reject negative stock and price
+  ---
+  duration_ms: 43.439963
+  ...
+# Subtest: Owner product creation, archival, coupons and content work together
+ok 13 - Owner product creation, archival, coupons and content work together
+  ---
+  duration_ms: 73.861048
+  ...
+# Subtest: Support creates a persistent conversation and admin replies reach the customer
+ok 14 - Support creates a persistent conversation and admin replies reach the customer
+  ---
+  duration_ms: 26.124321
+  ...
+# Subtest: Staff roles are enforced on the server, and revocation kills sessions
+ok 15 - Staff roles are enforced on the server, and revocation kills sessions
+  ---
+  duration_ms: 675.005334
+  ...
+# Subtest: Audit records capture privileged actions and cannot be read by customers
+ok 16 - Audit records capture privileged actions and cannot be read by customers
+  ---
+  duration_ms: 12.420964
+  ...
+# Subtest: Security headers and secure HttpOnly cookies are configured in production mode
+ok 17 - Security headers and secure HttpOnly cookies are configured in production mode
+  ---
+  duration_ms: 18.852004
+  ...
+# Subtest: Preview login rotates a partitioned session and logout clears the same cookie scope
+ok 18 - Preview login rotates a partitioned session and logout clears the same cookie scope
+  ---
+  duration_ms: 352.389122
+  ...
+# Subtest: Cookie-free demo transport is disabled in production, including for owners
+ok 19 - Cookie-free demo transport is disabled in production, including for owners
+  ---
+  duration_ms: 9.587602
+  ...
+# Subtest: Customer and owner sign-in endpoints reject the wrong account type without changing the session
+ok 20 - Customer and owner sign-in endpoints reject the wrong account type without changing the session
+  ---
+  duration_ms: 958.60612
+  ...
+# Subtest: Checkout requires a signed-in customer, including when the API is called directly
+ok 21 - Checkout requires a signed-in customer, including when the API is called directly
+  ---
+  duration_ms: 12.033511
+  ...
+# Subtest: Real Feeling shop details are persistent, owner-configurable, and contain no trial offer
+ok 22 - Real Feeling shop details are persistent, owner-configurable, and contain no trial offer
+  ---
+  duration_ms: 18.149663
+  ...
+# Subtest: Google endpoints fail closed until configured; no client profile or role is trusted
+ok 23 - Google endpoints fail closed until configured; no client profile or role is trusted
+  ---
+  duration_ms: 15.021312
+  ...
+# Subtest: New callback checkout returns a full private snapshot and detects stale review prices
+ok 24 - New callback checkout returns a full private snapshot and detects stale review prices
+  ---
+  duration_ms: 710.927347
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6754.140189

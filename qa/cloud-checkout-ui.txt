@@ -1,0 +1,9 @@
+PASS three-step checkout, bilingual review, 8 widths and light/dark review accessibility
+PASS saved order, genuine PDF, private details, call and editable WhatsApp/email links, 8 receipt widths and light/dark receipt accessibility
+PASS order retrieval after reload through authenticated customer account
+PASS owner-uploaded banner has its slot ID and publishes through saved settings
+PASS named image draft saves with the same actual product ID
+PASS new order appears in the owner workspace
+PASS owner banner editor responsive at 4 widths
+BROWSER ERRORS []
+ALL CLOUD CHECKOUT UI CHECKS PASSED

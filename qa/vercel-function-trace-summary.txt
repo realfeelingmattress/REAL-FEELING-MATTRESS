@@ -1,0 +1,6 @@
+Traced files: 635 ; approximately 43 MB
+Unicode PDF font traced: true
+Vite development server excluded: true
+Database files excluded: true
+Sharp Linux x64 binding traced: true
+Warnings concern optional/platform-specific packages; no cloud build was run. Full details in vercel-function-trace-warnings.txt.

@@ -1,0 +1,41 @@
+PASS: with cookies and custom auth/CSRF headers stripped, incorrect credentials are still rejected.
+PASS: owner login and protected dashboard work with ZERO cookies. No new tab needed.
+PASS: cookie-free session survives preview reload; no auth tokens are put in URLs or localStorage.
+PASS: authenticated, CSRF-protected owner mutation works through the same validated API handlers.
+PASS: product-image uploads still use validated decoding, size limits and re-encoding without cookies.
+PASS: malformed/forged CSRF is not bypassed by the fallback transport.
+PASS: logout revokes the old token and reload does not silently sign the owner back in.
+PASS: mobile owner login and navigation work even with cookies, sessionStorage and localStorage ALL blocked.
+PASS: memory-only logout also works.
+PASS: customer registration resumes Add to bag, and search works, with ALL cookies and both storage APIs blocked.
+All cookie-independent preview regressions passed.
+PASS: owner sign-in succeeds inside a cross-site HTTPS iframe.
+PASS: browser stores an HttpOnly Secure SameSite=None session partitioned by the parent site.
+PASS: authenticated session survives reloading the embedded preview.
+PASS: stale login token is refreshed automatically, then login is retried once (403 → 200).
+PASS: forged CSRF tokens remain blocked and cannot log out the current user.
+PASS: logout revokes the authenticated partitioned session.
+All embedded-session browser regressions passed.
+PASS: new shop identity; customer-only sign-in, Google setup state and no owner/trial links on the storefront.
+PASS: keyboard search, multi-word matches and complete search results including accessories.
+PASS: add-to-bag pauses for customer registration then adds the exact variant once; customer profile has no owner workspace.
+PASS: signed-in checkout remains connected to the customer and saved bag.
+PASS: separate owner endpoint/workspace, editable shop/social details, and Google setup guide. Owner session does not expose a customer-profile admin link.
+PASS: nine responsive widths without page overflow, mobile search/login and four light/dark dialog accessibility checks.
+PASS: Buy now also requires customer sign-in; cancelling never adds an item.
+All Real Feeling UI checks passed. No application errors.
+PASS search and accessible modal Escape
+PASS registration and account
+PASS variants, wishlist, compare, cart and coupon
+PASS three-step checkout, confirmation and authenticated tracking
+PASS persisted wishlist and comparison
+PASS eight-step recommendation wizard
+PASS customer support
+PASS owner login and dashboard
+PASS product editor save
+PASS audited inventory adjustment
+PASS owner settings saved
+PASS mobile owner navigation and dark mode
+PASS mobile accessory checkout
+BROWSER ERRORS []
+ALL FLOW CHECKS PASSED
