@@ -1,21 +1,20 @@
 import React, { useState, useRef, useEffect } from "react";
-import { IndianRupee, Package, AlertTriangle, Trash2 } from "lucide-react";
+import { IndianRupee, Package, Minus, Plus, X } from "lucide-react";
 
 const SIZES = [
-  { id: "Single", label: "Single", dim: "36×72 in · 3×6 ft" },
-  { id: "Double", label: "Double", dim: "48×72 in · 4×6 ft" },
-  { id: "Queen", label: "Queen", dim: "60×72 in · 5×6 ft" },
-  { id: "King", label: "King", dim: "72×72 in · 6×6 ft" },
+  { id: "Single", label: "Single", dim: "36×72" },
+  { id: "Double", label: "Double", dim: "48×72" },
+  { id: "Queen", label: "Queen", dim: "60×72" },
+  { id: "King", label: "King", dim: "72×72" },
 ];
 
 const THICKNESSES = ["4", "6", "8"];
 
 export function SizePriceGrid({ variants = [], onChange, disabled = false }) {
   const [activeCell, setActiveCell] = useState(null);
-  const inputRef = useRef(null);
+  const priceRef = useRef(null);
 
   const key = (s, t) => `${s}-${t}`;
-
   const getVariant = (size, thickness) =>
     variants.find((v) => v.size === size && v.thickness === thickness);
 
@@ -25,7 +24,6 @@ export function SizePriceGrid({ variants = [], onChange, disabled = false }) {
     if (existing) {
       const merged = { ...existing, ...updates };
       if (!merged.price || merged.price <= 0) {
-        // Remove if price cleared
         next = variants.filter((v) => !(v.size === size && v.thickness === thickness));
       } else {
         next = variants.map((v) =>
@@ -44,17 +42,19 @@ export function SizePriceGrid({ variants = [], onChange, disabled = false }) {
     setActiveCell(null);
   };
 
-  // Auto-focus input when cell opens
+  const adjustStock = (size, thickness, delta) => {
+    const v = getVariant(size, thickness);
+    const current = v?.stock ?? 0;
+    const next = Math.max(0, current + delta);
+    updateCell(size, thickness, { stock: next });
+  };
+
   useEffect(() => {
-    if (activeCell && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (activeCell && priceRef.current) {
+      priceRef.current.focus();
+      priceRef.current.select();
     }
   }, [activeCell]);
-
-  const activeVariant = activeCell ? getVariant(...activeCell.split("-")) : null;
-  const activeSize = activeCell ? SIZES.find((s) => s.id === activeCell.split("-")[0]) : null;
-  const activeThick = activeCell ? activeCell.split("-")[1] : null;
 
   return (
     <div className="spg">
@@ -62,31 +62,27 @@ export function SizePriceGrid({ variants = [], onChange, disabled = false }) {
         <Package size={18} />
         <div>
           <strong>Size & Pricing</strong>
-          <span>Click any box to set price & stock</span>
+          <span>Tap a box to set price & stock</span>
         </div>
       </div>
 
       <div className="spg-grid">
-        {/* Corner */}
         <div className="spg-corner">
-          <em>Thickness</em>
+          <em>Thick ↓</em>
           <em>Size →</em>
         </div>
 
-        {/* Column headers */}
         {SIZES.map((s) => (
           <div key={s.id} className="spg-col-head">
             <strong>{s.label}</strong>
-            <small>{s.dim}</small>
+            <small>{s.dim}"</small>
           </div>
         ))}
 
-        {/* Rows */}
         {THICKNESSES.map((t) => (
           <React.Fragment key={t}>
             <div className="spg-row-head">
               <strong>{t}"</strong>
-              <small>inch</small>
             </div>
 
             {SIZES.map((s) => {
@@ -100,24 +96,19 @@ export function SizePriceGrid({ variants = [], onChange, disabled = false }) {
               return (
                 <div
                   key={key(s.id, t)}
-                  className={[
-                    "spg-cell",
-                    has ? "has-price" : "",
-                    isActive ? "active" : "",
-                    outOfStock ? "out" : "",
-                  ].join(" ")}
+                  className={`spg-cell${has ? " has-price" : ""}${isActive ? " active" : ""}${outOfStock ? " out" : ""}`}
                   onClick={() => !disabled && setActiveCell(isActive ? null : key(s.id, t))}
                 >
                   {isActive ? (
-                    /* ── Inline editor ── */
-                    <div className="spg-editor" onClick={(e) => e.stopPropagation()}>
-                      <div className="spg-editor-price">
-                        <IndianRupee size={13} />
+                    <div className="spg-edit" onClick={(e) => e.stopPropagation()}>
+                      {/* Price Input */}
+                      <div className="spg-price-input">
+                        <span className="spg-rupee">₹</span>
                         <input
-                          ref={inputRef}
+                          ref={priceRef}
                           type="number"
                           min="1"
-                          placeholder="Price"
+                          placeholder="0"
                           value={v?.price || ""}
                           disabled={disabled}
                           onChange={(e) =>
@@ -127,72 +118,65 @@ export function SizePriceGrid({ variants = [], onChange, disabled = false }) {
                           }
                         />
                       </div>
-                      <div className="spg-editor-row">
-                        <div className="spg-editor-mrp">
-                          <small>MRP</small>
-                          <input
-                            type="number"
-                            min="1"
-                            placeholder="Optional"
-                            value={v?.original_price || ""}
-                            disabled={disabled}
-                            onChange={(e) =>
-                              updateCell(s.id, t, {
-                                original_price: e.target.value ? Number(e.target.value) : null,
-                              })
-                            }
-                          />
-                        </div>
-                        <div className="spg-editor-stock">
-                          <small>Stock</small>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="∞"
-                            value={v?.stock ?? ""}
-                            disabled={disabled}
-                            onChange={(e) =>
-                              updateCell(s.id, t, {
-                                stock: e.target.value !== "" ? Number(e.target.value) : null,
-                              })
-                            }
-                          />
-                        </div>
-                      </div>
-                      {lowStock && (
-                        <div className="spg-low">
-                          <AlertTriangle size={11} /> Only {stockNum} left!
-                        </div>
-                      )}
-                      {has && (
+
+                      {/* Stock with +/- buttons */}
+                      <div className="spg-stock-input">
                         <button
                           type="button"
-                          className="spg-remove"
-                          onClick={() => removeCell(s.id, t)}
-                          title="Remove this size"
+                          className="spg-stock-btn"
+                          onClick={() => adjustStock(s.id, t, -1)}
+                          disabled={disabled}
                         >
-                          <Trash2 size={12} />
+                          <Minus size={14} />
                         </button>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="∞"
+                          value={v?.stock ?? ""}
+                          disabled={disabled}
+                          onChange={(e) =>
+                            updateCell(s.id, t, {
+                              stock: e.target.value !== "" ? Number(e.target.value) : null,
+                            })
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="spg-stock-btn"
+                          onClick={() => adjustStock(s.id, t, 1)}
+                          disabled={disabled}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+
+                      {lowStock && (
+                        <span className="spg-low-tag">Only {stockNum} left</span>
                       )}
+
+                      <button
+                        type="button"
+                        className="spg-close"
+                        onClick={() => has ? removeCell(s.id, t) : setActiveCell(null)}
+                      >
+                        <X size={12} />
+                      </button>
                     </div>
                   ) : has ? (
-                    /* ── Filled cell ── */
                     <div className="spg-filled">
                       <span className="spg-price">₹{Number(v.price).toLocaleString("en-IN")}</span>
                       {v.original_price && (
                         <span className="spg-mrp">₹{Number(v.original_price).toLocaleString("en-IN")}</span>
                       )}
                       {stockNum !== null && (
-                        <span className={`spg-stock ${lowStock ? "low" : outOfStock ? "out" : "ok"}`}>
-                          {outOfStock ? "Out" : lowStock ? `${stockNum} left` : `${stockNum} stock`}
+                        <span className={`spg-stock-badge ${lowStock ? "low" : outOfStock ? "out" : "ok"}`}>
+                          {outOfStock ? "Out" : stockNum}
                         </span>
                       )}
                     </div>
                   ) : (
-                    /* ── Empty cell ── */
-                    <div className="spg-empty">
-                      <span>+</span>
-                    </div>
+                    <div className="spg-empty">+</div>
                   )}
                 </div>
               );
@@ -202,7 +186,7 @@ export function SizePriceGrid({ variants = [], onChange, disabled = false }) {
       </div>
 
       <p className="spg-hint">
-        💡 Click any cell to edit. Green cells are live on your store. Leave stock empty for unlimited.
+        💡 Green = live on store. Tap to edit price & stock.
       </p>
     </div>
   );
