@@ -987,55 +987,176 @@ function exportCSV(rows, name) {
 }
 function exportPDF(rows, title) {
   if (!rows?.length) return;
-  const w = window.open("", "_blank", "width=900,height=700");
+  const w = window.open("", "_blank", "width=1000,height=800");
   if (!w) return;
   const today = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
-  const html = `<!DOCTYPE html><html><head><title>${title}</title><style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: -apple-system, 'Segoe UI', sans-serif; padding: 40px; color: #1a1a1a; }
-    .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #354f42; }
-    .header h1 { font-size: 24px; color: #354f42; }
-    .header p { font-size: 12px; color: #666; margin-top: 4px; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    th { background: #354f42; color: #fff; padding: 10px 12px; text-align: left; font-weight: 600; }
-    td { padding: 8px 12px; border-bottom: 1px solid #e5e5e5; }
-    tr:nth-child(even) { background: #f9f9f9; }
-    .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; padding-top: 15px; border-top: 1px solid #ddd; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600; }
-    .badge.active { background: #dcfce7; color: #166534; }
-    .badge.archived { background: #fee2e2; color: #991b1b; }
-    @media print { body { padding: 20px; } }
-  </style></head><body>
-    <div class="header">
-      <h1>🛏️ Real Feeling Mattress</h1>
-      <p>${title} — Generated ${today}</p>
-    </div>
+  const money = (n) => "₹" + (n || 0).toLocaleString("en-IN");
+
+  let tableHTML = "";
+  let summaryHTML = "";
+
+  if (title === "Product Catalog") {
+    const totalProducts = rows.length;
+    const activeProducts = rows.filter((r) => r.active).length;
+    const totalStock = rows.reduce((s, r) => {
+      const vStock = (r.variants || []).reduce((vs, v) => vs + (v.stock || 0), 0);
+      return s + (vStock || r.stock || 0);
+    }, 0);
+    const allPrices = rows.flatMap((r) => (r.variants || []).map((v) => v.price)).filter(Boolean);
+    const avgPrice = allPrices.length ? Math.round(allPrices.reduce((a, b) => a + b, 0) / allPrices.length) : 0;
+
+    summaryHTML = `
+      <div class="summary-grid">
+        <div class="summary-card"><div class="summary-num">${totalProducts}</div><div class="summary-label">Total Products</div></div>
+        <div class="summary-card"><div class="summary-num">${activeProducts}</div><div class="summary-label">Active</div></div>
+        <div class="summary-card"><div class="summary-num">${totalStock}</div><div class="summary-label">Total Stock</div></div>
+        <div class="summary-card"><div class="summary-num">${money(avgPrice)}</div><div class="summary-label">Avg Price</div></div>
+      </div>`;
+
+    tableHTML = `
     <table>
       <thead><tr>
-        <th>Product</th><th>Category</th><th>Material</th><th>Sizes</th><th>Price Range</th><th>Stock</th><th>Status</th>
+        <th>#</th><th>Product</th><th>Category</th><th>Material</th><th>Sizes Available</th><th>Price Range</th><th>Stock (per variant)</th><th>Status</th>
       </tr></thead>
       <tbody>
-        ${rows.map((r) => {
+        ${rows.map((r, i) => {
           const variants = r.variants || [];
-          const prices = variants.map(v => v.price).filter(Boolean);
-          const minP = prices.length ? Math.min(...prices) : r.price;
-          const maxP = prices.length ? Math.max(...prices) : r.price;
-          const sizes = [...new Set(variants.map(v => v.size))].join(", ") || "—";
-          const totalStock = variants.reduce((s, v) => s + (v.stock || 0), 0);
-          return `<tr>
+          const prices = variants.map((v) => v.price).filter(Boolean);
+          const minP = prices.length ? Math.min(...prices) : r.price || 0;
+          const maxP = prices.length ? Math.max(...prices) : r.price || 0;
+          const sizes = [...new Set(variants.map((v) => v.size))];
+          const totalStock = variants.reduce((s, v) => s + (v.stock || 0), 0) || r.stock || 0;
+          const variantDetails = variants.map((v) =>
+            `<tr class="variant-row">
+              <td>${v.size} × ${v.thickness}"</td>
+              <td>${money(v.price)}</td>
+              <td>${v.stock ?? "—"}</td>
+            </tr>`
+          ).join("");
+          return `
+          <tr>
+            <td>${i + 1}</td>
             <td><strong>${r.name || ""}</strong>${r.subtitle ? `<br><small style="color:#888">${r.subtitle}</small>` : ""}</td>
             <td>${r.category || ""}</td>
             <td>${r.material || ""}</td>
-            <td>${sizes}</td>
-            <td>₹${minP?.toLocaleString("en-IN") || 0}${minP !== maxP ? ` – ₹${maxP?.toLocaleString("en-IN")}` : ""}</td>
-            <td>${totalStock}</td>
+            <td>${sizes.join(", ") || "—"}</td>
+            <td>${money(minP)}${minP !== maxP ? ` – ${money(maxP)}` : ""}</td>
+            <td>
+              <strong>${totalStock}</strong> total
+              ${variants.length ? `<table class="variant-table"><tbody>${variantDetails}</tbody></table>` : ""}
+            </td>
             <td><span class="badge ${r.active ? "active" : "archived"}">${r.active ? "Active" : "Archived"}</span></td>
           </tr>`;
         }).join("")}
       </tbody>
-    </table>
+    </table>`;
+  } else if (title === "Orders Report") {
+    const totalOrders = rows.length;
+    const totalRevenue = rows.reduce((s, r) => s + (r.total || 0), 0);
+    const pending = rows.filter((r) => r.status === "pending" || r.status === "confirmed").length;
+    const delivered = rows.filter((r) => r.status === "delivered").length;
+
+    summaryHTML = `
+      <div class="summary-grid">
+        <div class="summary-card"><div class="summary-num">${totalOrders}</div><div class="summary-label">Total Orders</div></div>
+        <div class="summary-card"><div class="summary-num">${money(totalRevenue)}</div><div class="summary-label">Total Revenue</div></div>
+        <div class="summary-card"><div class="summary-num">${pending}</div><div class="summary-label">Pending</div></div>
+        <div class="summary-card"><div class="summary-num">${delivered}</div><div class="summary-label">Delivered</div></div>
+      </div>`;
+
+    tableHTML = `
+    <table>
+      <thead><tr>
+        <th>#</th><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map((r, i) => {
+          const items = r.items || [];
+          const itemSummary = items.map((it) => `${it.product_name || ""} × ${it.quantity || 1}`).join(", ") || "—";
+          return `
+          <tr>
+            <td>${i + 1}</td>
+            <td><strong>${r.id?.slice(0, 8) || ""}</strong></td>
+            <td>${r.name || r.email || "—"}</td>
+            <td><small>${itemSummary}</small></td>
+            <td><strong>${money(r.total)}</strong></td>
+            <td><span class="badge ${r.status === "delivered" ? "active" : r.status === "cancelled" ? "archived" : "pending"}">${r.status || "—"}</span></td>
+            <td>${r.created ? new Date(r.created).toLocaleDateString("en-IN") : "—"}</td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>`;
+  } else if (title === "Customer Report") {
+    const totalCustomers = rows.length;
+    const totalSpent = rows.reduce((s, r) => s + (r.spent || 0), 0);
+    const totalOrders = rows.reduce((s, r) => s + (r.orders || 0), 0);
+    const topSpenders = [...rows].sort((a, b) => (b.spent || 0) - (a.spent || 0)).slice(0, 5);
+
+    summaryHTML = `
+      <div class="summary-grid">
+        <div class="summary-card"><div class="summary-num">${totalCustomers}</div><div class="summary-label">Total Customers</div></div>
+        <div class="summary-card"><div class="summary-num">${totalOrders}</div><div class="summary-label">Total Orders</div></div>
+        <div class="summary-card"><div class="summary-num">${money(totalSpent)}</div><div class="summary-label">Total Revenue</div></div>
+        <div class="summary-card"><div class="summary-num">${money(totalCustomers ? Math.round(totalSpent / totalCustomers) : 0)}</div><div class="summary-label">Avg Lifetime Value</div></div>
+      </div>`;
+
+    tableHTML = `
+    <table>
+      <thead><tr>
+        <th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Orders</th><th>Total Spent</th><th>Joined</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map((r, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td><strong>${r.name || "—"}</strong></td>
+            <td>${r.email || "—"}</td>
+            <td>${r.phone || "—"}</td>
+            <td>${r.orders || 0}</td>
+            <td><strong>${money(r.spent)}</strong></td>
+            <td>${r.created ? new Date(r.created).toLocaleDateString("en-IN") : "—"}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>`;
+  }
+
+  const html = `<!DOCTYPE html><html><head><title>${title} — Real Feeling Mattress</title><style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif; padding: 30px 40px; color: #1a1a1a; font-size: 12px; line-height: 1.5; }
+    .header { text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px solid #354f42; }
+    .header h1 { font-size: 26px; color: #354f42; letter-spacing: -0.5px; }
+    .header p { font-size: 12px; color: #666; margin-top: 4px; }
+    .header .logo-text { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #999; margin-bottom: 6px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .summary-card { background: #f8faf8; border: 1px solid #e2e8e4; border-radius: 8px; padding: 14px; text-align: center; }
+    .summary-num { font-size: 22px; font-weight: 700; color: #354f42; }
+    .summary-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th { background: #354f42; color: #fff; padding: 10px 10px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+    td { padding: 10px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+    tr:nth-child(even) td { background: #fafbfa; }
+    tr:hover td { background: #f5f7f5; }
+    .footer { margin-top: 24px; text-align: center; font-size: 10px; color: #aaa; padding-top: 14px; border-top: 1px solid #eee; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+    .badge.active { background: #dcfce7; color: #166534; }
+    .badge.archived { background: #fee2e2; color: #991b1b; }
+    .badge.pending { background: #fef3c7; color: #92400e; }
+    .variant-table { margin-top: 6px; font-size: 9px; width: 100%; }
+    .variant-table td { padding: 2px 6px; border: none; border-bottom: 1px dashed #e5e5e5; background: none !important; }
+    .variant-row td:first-child { font-weight: 600; }
+    small { color: #999; }
+    @media print { body { padding: 15px 20px; } .summary-grid { gap: 8px; } }
+  </style></head><body>
+    <div class="header">
+      <div class="logo-text">Real Feeling Mattress</div>
+      <h1>${title}</h1>
+      <p>Generated on ${today} · ${rows.length} records</p>
+    </div>
+    ${summaryHTML}
+    ${tableHTML}
     <div class="footer">
-      <p>${rows.length} products · Real Feeling Mattress · Confidential</p>
+      <p>Confidential · Real Feeling Mattress · ${today}</p>
     </div>
   </body></html>`;
   w.document.write(html);
@@ -1485,18 +1606,30 @@ function Management({ section }) {
           <p>{descriptions[section]}</p>
         </div>
         <div className="button-row">
-          <button
-            className="btn admin-outline"
-            onClick={() => exportCSV(rows, "nocte-" + section)}
-            disabled={!rows.length}
-          >
-            <Download size={16} />
-            Export CSV
-          </button>
           {section === "products" && (
             <button
               className="btn admin-outline"
               onClick={() => exportPDF(rows, "Product Catalog")}
+              disabled={!rows.length}
+            >
+              <FileText size={16} />
+              Export PDF
+            </button>
+          )}
+          {section === "orders" && (
+            <button
+              className="btn admin-outline"
+              onClick={() => exportPDF(rows, "Orders Report")}
+              disabled={!rows.length}
+            >
+              <FileText size={16} />
+              Export PDF
+            </button>
+          )}
+          {section === "customers" && (
+            <button
+              className="btn admin-outline"
+              onClick={() => exportPDF(rows, "Customer Report")}
               disabled={!rows.length}
             >
               <FileText size={16} />
