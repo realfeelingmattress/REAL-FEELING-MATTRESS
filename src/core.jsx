@@ -296,12 +296,20 @@ export function Provider({ children }) {
 export const useStore = () => useContext(Ctx);
 export function useData(url) {
   const [data, setData] = useState(null),
-    [error, setError] = useState("");
-  const reload = () => {
-    setError("");
+    [error, setError] = useState(""),
+    [refreshing, setRefreshing] = useState(false);
+  const reload = (silent = false) => {
+    if (!silent) setError("");
+    if (silent) setRefreshing(true);
     return api(url)
-      .then(setData)
-      .catch((e) => setError(e.message));
+      .then((d) => {
+        setData(d);
+        if (!silent) setError("");
+      })
+      .catch((e) => {
+        if (!silent) setError(e.message);
+      })
+      .finally(() => setRefreshing(false));
   };
   useEffect(() => {
     let active = true;
@@ -314,7 +322,7 @@ export function useData(url) {
       active = false;
     };
   }, [url]);
-  return { data, error, reload, setData };
+  return { data, error, reload, setData, refreshing };
 }
 export function Modal({
   title,

@@ -16,7 +16,8 @@
     "db:setup": "node scripts/setup-database.mjs",
     "cloud:check": "node scripts/cloud-check.mjs",
     "test:cloud": "node --test server/media.test.js server/order-pdf.test.js",
-    "test:checkout-ui": "node qa/cloud-checkout.mjs"
+    "test:checkout-ui": "node qa/cloud-checkout.mjs",
+    "deploy:check": "node scripts/deploy-check.mjs"
   },
   "dependencies": {
     "@vercel/functions": "^3.9.6",

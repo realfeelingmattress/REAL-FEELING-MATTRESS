@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Environment variables (contains secrets — never commit)
+.env
+.env.local
+.env.*.local
+
+# Database files (local SQLite — never commit)
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Build output
+dist/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test / QA artifacts
+qa/*.json
+coverage/
+
+# Misc
+.cache/
+*.tgz

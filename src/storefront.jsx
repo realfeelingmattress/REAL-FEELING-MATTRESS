@@ -37,6 +37,8 @@ import {
   Package,
   MoveRight,
   Lock,
+  Ruler,
+  Bell,
 } from "lucide-react";
 import {
   useStore,
@@ -811,12 +813,24 @@ export function ProductPage() {
     [busy, setBusy] = useState(false);
   const nav = useNavigate();
   useEffect(() => {
-    if (p) {
+    if (p && p.variants?.length) {
+      // Initialize from actual available variants
+      const sizes = [...new Set(p.variants.map((v) => v.size))];
+      const thicknesses = [...new Set(p.variants.map((v) => v.thickness))];
+      const firmnesses = [...new Set(p.variants.map((v) => v.firmness))];
+      // Pick sensible defaults: prefer Queen/Double, prefer product's thickness, prefer Medium
+      const defaultSize = sizes.includes("Queen") ? "Queen" : sizes.includes("Double") ? "Double" : sizes[0];
+      const defaultThick = thicknesses.includes(p.thickness) ? p.thickness : thicknesses[0];
+      const defaultFirm = firmnesses.includes("Medium") ? "Medium" : firmnesses[0];
+      setSize(defaultSize || "Queen");
+      setThickness(defaultThick || p.thickness);
+      setFirmness(defaultFirm || p.firmness);
+      setPhoto(0);
+      document.title = `${p.name} — ${p.material} | ${boot.settings.storeName}`;
+    } else if (p) {
       setThickness(p.thickness);
       setFirmness(p.firmness);
-      setSize(
-        ["Bedding", "Accessories"].includes(p.category) ? "Standard" : "Queen",
-      );
+      setSize(["Bedding", "Accessories"].includes(p.category) ? "Standard" : "Queen");
       setPhoto(0);
       document.title = `${p.name} — ${p.material} | ${boot.settings.storeName}`;
     }
@@ -834,9 +848,15 @@ export function ProductPage() {
           v.size === size &&
           v.thickness === thickness &&
           v.firmness === firmness,
-      ) || p.variants[0],
+      ) ||
+      p.variants.find(
+        (v) => v.size === size && v.thickness === thickness,
+      ) ||
+      p.variants[0],
     images = p.images.length ? p.images : [p.image],
     price = variant?.price || p.price,
+    variantMrp = variant?.original_price || null,
+    variantStock = variant?.stock ?? p.stock,
     accessory = ["Bedding", "Accessories"].includes(p.category);
   let touch = 0;
   return (
@@ -932,16 +952,30 @@ export function ProductPage() {
             </button>
             <div className="pdp-price">
               <strong>{money(price)}</strong>
-              <del>
-                {money(Math.round((price * p.original_price) / p.price))}
-              </del>
-              <span>
-                {Math.round((1 - p.price / p.original_price) * 100)}% off
-              </span>
+              {variantMrp && variantMrp > price ? (
+                <>
+                  <del>{money(variantMrp)}</del>
+                  <span className="pdp-discount">
+                    {Math.round((1 - price / variantMrp) * 100)}% off
+                  </span>
+                </>
+              ) : p.original_price && p.original_price > p.price ? (
+                <>
+                  <del>{money(p.original_price)}</del>
+                  <span className="pdp-discount">
+                    {Math.round((1 - p.price / p.original_price) * 100)}% off
+                  </span>
+                </>
+              ) : null}
             </div>
-            <p className="tax-note">
-              Inclusive of all taxes · EMI available after payment integration
-            </p>
+            <div className="pdp-price-meta">
+              <span className="tax-note">Inclusive of all taxes</span>
+              {variantStock !== null && variantStock !== undefined && (
+                <span className={`pdp-stock ${variantStock <= 0 ? "out" : variantStock <= 5 ? "low" : ""}`}>
+                  {variantStock <= 0 ? "Out of stock" : variantStock <= 5 ? `Only ${variantStock} left!` : "In stock"}
+                </span>
+              )}
+            </div>
             <div className="pdp-benefits">
               <span>
                 <Wind size={17} />
@@ -965,47 +999,51 @@ export function ProductPage() {
                   </Link>
                 </div>
                 <div className="size-selector">
-                  {["Single", "Double", "Queen", "King"].map((s) => (
-                    <button
-                      aria-pressed={size === s}
-                      key={s}
-                      className={size === s ? "selected" : ""}
-                      onClick={() => setSize(s)}
-                    >
-                      <b>{s}</b>
-                      <span>
-                        {
-                          {
-                            Single: "36 × 75",
-                            Double: "54 × 75",
-                            Queen: "60 × 78",
-                            King: "72 × 78",
-                          }[s]
-                        }{" "}
-                        in
-                      </span>
-                    </button>
-                  ))}
+                  {[...new Set(p.variants.map((v) => v.size))].sort(
+                    (a, b) => ["Single","Double","Queen","King"].indexOf(a) - ["Single","Double","Queen","King"].indexOf(b)
+                  ).map((s) => {
+                    // Find cheapest variant for this size to show starting price
+                    const sizeVariants = p.variants.filter((v) => v.size === s);
+                    const minPrice = Math.min(...sizeVariants.map((v) => v.price));
+                    const allOutOfStock = sizeVariants.every((v) => v.stock != null && v.stock <= 0);
+                    return (
+                      <button
+                        aria-pressed={size === s}
+                        key={s}
+                        className={`${size === s ? "selected" : ""}${allOutOfStock ? " oos" : ""}`}
+                        onClick={() => !allOutOfStock && setSize(s)}
+                        disabled={allOutOfStock}
+                      >
+                        <b>{s}</b>
+                        <span>
+                          {{ Single: "36×72", Double: "48×72", Queen: "60×72", King: "72×72" }[s] || s} in
+                        </span>
+                        <em>{money(minPrice)}</em>
+                      </button>
+                    );
+                  })}
                 </div>
                 <div className="selector-heading">
-                  <b>2. A little more height?</b>
-                  <span>Choose your profile</span>
+                  <b>2. Choose thickness</b>
+                  <span>Profile height</span>
                 </div>
                 <div className="pill-select">
-                  {["6", "8", "10"].map((t) => (
+                  {[...new Set(p.variants.map((v) => v.thickness))].sort(
+                    (a, b) => Number(a) - Number(b)
+                  ).map((t) => (
                     <button
                       key={t}
                       className={thickness === t ? "selected" : ""}
                       aria-pressed={thickness === t}
                       onClick={() => setThickness(t)}
                     >
-                      {t} inches{t === p.thickness && <span>Recommended</span>}
+                      {t}"{t === p.thickness && <span>Popular</span>}
                     </button>
                   ))}
                 </div>
                 <div className="selector-heading">
-                  <b>3. Make it feel like you</b>
-                  <span>Choose your comfort</span>
+                  <b>3. Comfort feel</b>
+                  <span>How firm</span>
                 </div>
                 <div className="pill-select">
                   {[...new Set(p.variants.map((v) => v.firmness))].map((f) => (
@@ -1072,6 +1110,84 @@ export function ProductPage() {
             >
               Buy now <ArrowRight size={17} />
             </button>
+            {!accessory && (
+              <div className="custom-request">
+                <div className="custom-request-head">
+                  <Ruler size={16} />
+                  <div>
+                    <b>Need a custom size?</b>
+                    <span>Get a mattress made for your bed frame</span>
+                  </div>
+                </div>
+                <details>
+                  <summary>Customize your mattress</summary>
+                  <form
+                    className="custom-form"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        const f = new FormData(e.currentTarget);
+                        await api("/custom-requests", {
+                          productId: p.id,
+                          productName: p.name,
+                          customSize: f.get("customSize"),
+                          customWidth: f.get("customWidth"),
+                          thickness: f.get("customThickness"),
+                          firmness: f.get("customFirmness"),
+                          name: f.get("custName"),
+                          phone: f.get("custPhone"),
+                          note: f.get("custNote"),
+                        }, "POST");
+                        notify("Custom request sent! We'll call you within 24 hours.");
+                        e.currentTarget.closest("details").open = false;
+                      } catch (err) {
+                        notify(err.message, "error");
+                      }
+                    }}
+                  >
+                    <div className="custom-grid">
+                      <Field label="Length (inches)">
+                        <input name="customSize" required placeholder="e.g. 78" inputMode="numeric" />
+                      </Field>
+                      <Field label="Width (inches)">
+                        <input name="customWidth" required placeholder="e.g. 60" inputMode="numeric" />
+                      </Field>
+                      <Field label="Thickness">
+                        <select name="customThickness" defaultValue="6">
+                          <option value="4">4 inches</option>
+                          <option value="6">6 inches</option>
+                          <option value="8">8 inches</option>
+                          <option value="10">10 inches</option>
+                        </select>
+                      </Field>
+                      <Field label="Feel">
+                        <select name="customFirmness" defaultValue="Medium">
+                          <option>Soft</option>
+                          <option>Medium Soft</option>
+                          <option>Medium</option>
+                          <option>Medium Firm</option>
+                          <option>Firm</option>
+                        </select>
+                      </Field>
+                    </div>
+                    <div className="custom-grid">
+                      <Field label="Your name">
+                        <input name="custName" required placeholder="Full name" />
+                      </Field>
+                      <Field label="Phone number">
+                        <input name="custPhone" required type="tel" placeholder="+91 ..." />
+                      </Field>
+                    </div>
+                    <Field label="Special requirements (optional)">
+                      <textarea name="custNote" rows={2} placeholder="Allergies, special materials, etc." />
+                    </Field>
+                    <button type="submit" className="btn primary full">
+                      Send custom request <ArrowRight size={15} />
+                    </button>
+                  </form>
+                </details>
+              </div>
+            )}
             <div className="stock-note">
               <i />
               {p.stock > 0

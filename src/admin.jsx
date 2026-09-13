@@ -55,6 +55,7 @@ import {
   Palette,
   KeyRound,
   Activity,
+  Ruler,
 } from "lucide-react";
 import {
   AreaChart,
@@ -84,7 +85,8 @@ import {
   ThemeSelect,
 } from "./core";
 import { LoginForm, downloadInvoice } from "./commerce";
-import { MediaUpload } from "./media-upload";
+import { MediaUpload, MultiImageUpload } from "./media-upload";
+import { SizePriceGrid } from "./size-price-grid";
 import { OrderReceipt } from "./order-documents";
 const sections = [
   ["dashboard", "Overview", LayoutDashboard],
@@ -93,14 +95,15 @@ const sections = [
   ["orders", "Orders", ShoppingBag],
   ["customers", "Customers", Users],
   ["reviews", "Reviews", Star],
-  ["coupons", "Coupons & offers", Tag],
-  ["content", "Content studio", FileText],
+  ["coupons", "Coupons", Tag],
+  ["content", "Content", FileText],
   ["categories", "Categories", Layers],
   ["analytics", "Analytics", ChartNoAxesCombined],
-  ["support", "Support inbox", MessageSquare],
-  ["staff", "Team & permissions", UserCog],
+  ["support", "Support", MessageSquare],
+  ["custom", "Custom Requests", Ruler],
+  ["staff", "Team", UserCog],
   ["security", "Security", ShieldCheck],
-  ["audit", "Audit log", ScrollText],
+  ["audit", "Audit Log", ScrollText],
   ["settings", "Settings", Settings],
 ];
 function allowed(boot, s) {
@@ -175,11 +178,11 @@ export default function Admin() {
           </Link>
           <span>WORKSPACE</span>
           <button
-            className="mobile-only icon-btn"
+            className="mobile-only icon-btn nav-close"
             onClick={() => setMobile(false)}
             aria-label="Close admin navigation"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
         <div className="store-switch">
@@ -190,16 +193,23 @@ export default function Admin() {
           </div>
           <span className="live-dot" />
         </div>
-        <span className="admin-nav-label">YOUR WORKSPACE</span>
         <nav aria-label="Owner navigation">
+          <span className="admin-nav-label">OVERVIEW</span>
           {sections
             .filter(([s]) => allowed(boot, s))
             .map(([s, label, Icon], i) => (
               <React.Fragment key={s}>
+                {s === "products" && (
+                  <span className="admin-nav-label">CATALOG</span>
+                )}
+                {s === "content" && (
+                  <span className="admin-nav-label">MARKETING</span>
+                )}
+                {s === "support" && (
+                  <span className="admin-nav-label">CUSTOMER CARE</span>
+                )}
                 {s === "staff" && (
-                  <span className="admin-nav-label bottom-label">
-                    STORE MANAGEMENT
-                  </span>
+                  <span className="admin-nav-label">ADMIN</span>
                 )}
                 <NavLink
                   to={"/owner/" + s}
@@ -207,7 +217,6 @@ export default function Admin() {
                 >
                   <Icon size={18} strokeWidth={1.6} />
                   <span>{label}</span>
-                  {s === "support" && <i className="nav-new-dot" />}
                 </NavLink>
               </React.Fragment>
             ))}
@@ -247,11 +256,15 @@ export default function Admin() {
       <div className="admin-main">
         <header className="admin-topbar">
           <button
-            className="icon-btn mobile-only"
+            className="mobile-only nav-open-btn"
             aria-label="Open owner navigation"
             onClick={() => setMobile(true)}
           >
-            <Menu size={21} />
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect y="4" width="16" height="2" rx="1" fill="currentColor"/>
+              <rect y="9" width="20" height="2" rx="1" fill="currentColor"/>
+              <rect y="14" width="13" height="2" rx="1" fill="currentColor"/>
+            </svg>
           </button>
           <div className="admin-breadcrumb">
             Workspace <ChevronRight size={13} />
@@ -348,43 +361,78 @@ function AdminNotifications({ onClose }) {
         updates.
       </p>
     );
+  const notifications = [
+    data.pending > 0 && {
+      section: "orders",
+      Icon: ShoppingBag,
+      title: `${data.pending} orders need your attention`,
+      desc: "Confirm, pack, and keep good nights moving.",
+      severity: "urgent",
+      count: data.pending,
+      time: "Just now",
+    },
+    data.lowStock?.length > 0 && {
+      section: "inventory",
+      Icon: Boxes,
+      title: `${data.lowStock.length} products running low`,
+      desc: "A good time to plan your next restock.",
+      severity: "warning",
+      count: data.lowStock.length,
+      time: "Updated recently",
+    },
+    data.tickets > 0 && {
+      section: "support",
+      Icon: MessageSquare,
+      title: `${data.tickets} open support conversations`,
+      desc: "A little help goes a long way.",
+      severity: "info",
+      count: data.tickets,
+      time: "Active",
+    },
+    data.reviews > 0 && {
+      section: "reviews",
+      Icon: Star,
+      title: `${data.reviews} reviews awaiting moderation`,
+      desc: "Hear how your customers are sleeping.",
+      severity: "info",
+      count: data.reviews,
+      time: "Pending review",
+    },
+  ].filter(Boolean);
   return (
     <div className="admin-notifications">
-      {[
-        [
-          "orders",
-          ShoppingBag,
-          `${data.pending} orders need your attention`,
-          "Confirm, pack, and keep good nights moving.",
-        ],
-        [
-          "inventory",
-          Boxes,
-          `${data.lowStock.length} products running low`,
-          "A good time to plan your next restock.",
-        ],
-        [
-          "support",
-          MessageSquare,
-          `${data.tickets} open support conversations`,
-          "A little help goes a long way.",
-        ],
-        [
-          "reviews",
-          Star,
-          `${data.reviews} reviews awaiting moderation`,
-          "Hear how your customers are sleeping.",
-        ],
-      ].map(([s, I, t, p]) => (
-        <Link key={s} to={"/owner/" + s} onClick={onClose}>
-          <I size={21} />
-          <div>
-            <h4>{t}</h4>
-            <p>{p}</p>
+      {notifications.length === 0 ? (
+        <div className="notifications-empty">
+          <CheckCircle2 size={48} />
+          <h3>All caught up!</h3>
+          <p>No notifications right now. Your store is running smoothly.</p>
+        </div>
+      ) : (
+        <>
+          <div className="notifications-header">
+            <strong>{notifications.length} notifications</strong>
+            <span className="notification-badge">
+              {notifications.filter((n) => n.severity === "urgent").length} urgent
+            </span>
           </div>
-          <ArrowRight size={16} />
-        </Link>
-      ))}
+          {notifications.map(({ section, Icon, title, desc, severity, count, time }) => (
+            <Link key={section} to={"/owner/" + section} onClick={onClose} className={`notification-item ${severity}`}>
+              <div className="notification-icon">
+                <Icon size={20} />
+              </div>
+              <div className="notification-content">
+                <h4>{title}</h4>
+                <p>{desc}</p>
+                <small>{time}</small>
+              </div>
+              <div className="notification-meta">
+                {count > 0 && <span className="notification-count">{count}</span>}
+                <ArrowRight size={16} />
+              </div>
+            </Link>
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -399,6 +447,11 @@ function Dashboard({ analytics = false }) {
       new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10),
     ),
     [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  // Live auto-refresh every 30 seconds (silent, no loading flicker)
+  useEffect(() => {
+    const timer = setInterval(() => reload(true), 30000);
+    return () => clearInterval(timer);
+  }, [reload]);
   if (error) return <ErrorState error={error} retry={reload} />;
   if (!data) return <Loading />;
   const chart =
@@ -538,6 +591,43 @@ function Dashboard({ analytics = false }) {
           </div>
         ))}
       </div>
+      {/* Quick Actions */}
+      {!analytics && (
+        <div className="quick-actions-row">
+          <Link to="/owner/products" className="quick-action-card">
+            <div className="qa-icon qa-green"><Package size={20} /></div>
+            <div>
+              <strong>Add Product</strong>
+              <span>Create a new listing</span>
+            </div>
+            <ArrowRight size={16} />
+          </Link>
+          <Link to="/owner/orders" className="quick-action-card">
+            <div className="qa-icon qa-blue"><ShoppingBag size={20} /></div>
+            <div>
+              <strong>View Orders</strong>
+              <span>{data.pending} need attention</span>
+            </div>
+            <ArrowRight size={16} />
+          </Link>
+          <Link to="/owner/inventory" className="quick-action-card">
+            <div className="qa-icon qa-orange"><Boxes size={20} /></div>
+            <div>
+              <strong>Stock Check</strong>
+              <span>{data.lowStock.length} running low</span>
+            </div>
+            <ArrowRight size={16} />
+          </Link>
+          <Link to="/owner/settings" className="quick-action-card">
+            <div className="qa-icon qa-purple"><Settings size={20} /></div>
+            <div>
+              <strong>Store Settings</strong>
+              <span>Update your details</span>
+            </div>
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+      )}
       <div className="dashboard-charts">
         <section className="admin-panel revenue-panel">
           <div className="panel-heading">
@@ -895,6 +985,63 @@ function exportCSV(rows, name) {
   a.click();
   URL.revokeObjectURL(u);
 }
+function exportPDF(rows, title) {
+  if (!rows?.length) return;
+  const w = window.open("", "_blank", "width=900,height=700");
+  if (!w) return;
+  const today = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+  const html = `<!DOCTYPE html><html><head><title>${title}</title><style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, 'Segoe UI', sans-serif; padding: 40px; color: #1a1a1a; }
+    .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #354f42; }
+    .header h1 { font-size: 24px; color: #354f42; }
+    .header p { font-size: 12px; color: #666; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th { background: #354f42; color: #fff; padding: 10px 12px; text-align: left; font-weight: 600; }
+    td { padding: 8px 12px; border-bottom: 1px solid #e5e5e5; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; padding-top: 15px; border-top: 1px solid #ddd; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+    .badge.active { background: #dcfce7; color: #166534; }
+    .badge.archived { background: #fee2e2; color: #991b1b; }
+    @media print { body { padding: 20px; } }
+  </style></head><body>
+    <div class="header">
+      <h1>🛏️ Real Feeling Mattress</h1>
+      <p>${title} — Generated ${today}</p>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Product</th><th>Category</th><th>Material</th><th>Sizes</th><th>Price Range</th><th>Stock</th><th>Status</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map((r) => {
+          const variants = r.variants || [];
+          const prices = variants.map(v => v.price).filter(Boolean);
+          const minP = prices.length ? Math.min(...prices) : r.price;
+          const maxP = prices.length ? Math.max(...prices) : r.price;
+          const sizes = [...new Set(variants.map(v => v.size))].join(", ") || "—";
+          const totalStock = variants.reduce((s, v) => s + (v.stock || 0), 0);
+          return `<tr>
+            <td><strong>${r.name || ""}</strong>${r.subtitle ? `<br><small style="color:#888">${r.subtitle}</small>` : ""}</td>
+            <td>${r.category || ""}</td>
+            <td>${r.material || ""}</td>
+            <td>${sizes}</td>
+            <td>₹${minP?.toLocaleString("en-IN") || 0}${minP !== maxP ? ` – ₹${maxP?.toLocaleString("en-IN")}` : ""}</td>
+            <td>${totalStock}</td>
+            <td><span class="badge ${r.active ? "active" : "archived"}">${r.active ? "Active" : "Archived"}</span></td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>
+    <div class="footer">
+      <p>${rows.length} products · Real Feeling Mattress · Confidential</p>
+    </div>
+  </body></html>`;
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 500);
+}
 function Management({ section }) {
   const { data, error, reload } = useData("/admin/" + section);
   const { notify, refresh, boot } = useStore();
@@ -907,7 +1054,8 @@ function Management({ section }) {
     [edit, setEdit] = useState(null),
     [busy, setBusy] = useState(false),
     [selected, setSelected] = useState([]),
-    [history, setHistory] = useState(null);
+    [history, setHistory] = useState(null),
+    [view, setView] = useState("table");
   useEffect(() => {
     setPage(1);
   }, [query, filter]);
@@ -930,7 +1078,9 @@ function Management({ section }) {
         (section === "products"
           ? filter === "Active"
             ? r.active
-            : !r.active
+            : filter === "Archived"
+              ? !r.active
+              : true
           : section === "inventory"
             ? filter === "Low stock"
               ? r.stock < 20
@@ -983,10 +1133,21 @@ function Management({ section }) {
   async function action(url, body, method = "PATCH", message = "All saved.") {
     setBusy(true);
     try {
-      await api(url, { method, body });
+      const result = await api(url, { method, body });
       notify(message);
       setEdit(null);
-      reload();
+      // Live update: patch local data immediately, then silently refresh
+      if (method === "DELETE" && body?.id) {
+        setData((old) => old?.filter((r) => r.id !== body.id) ?? old);
+      } else if (method === "PATCH" && body?.id) {
+        setData((old) =>
+          old?.map((r) => (r.id === body.id ? { ...r, ...body } : r)) ?? old,
+        );
+      } else if (method === "POST" && result?.id) {
+        setData((old) => [{ ...body, ...result }, ...(old || [])]);
+      }
+      // Silent background refresh
+      reload(true);
       refresh();
       return true;
     } catch (e) {
@@ -1000,15 +1161,26 @@ function Management({ section }) {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget));
     if (section === "products") {
+      // Auto-calculate base price from variants (lowest variant price)
+      const variantPrices = (edit.variants || []).map((v) => v.price).filter(Boolean);
+      const autoPrice = variantPrices.length ? Math.min(...variantPrices) : 0;
+      const autoOriginal = (edit.variants || [])
+        .map((v) => v.original_price)
+        .filter(Boolean);
+      const autoOriginalPrice = autoOriginal.length ? Math.min(...autoOriginal) : null;
+      // Auto-calculate stock from variants
+      const variantStocks = (edit.variants || []).map((v) => v.stock).filter((s) => s != null);
+      const autoStock = variantStocks.length ? variantStocks.reduce((a, b) => a + b, 0) : 0;
       const b = {
         ...(edit.id ? edit : {}),
         ...(edit.draftId ? { draftId: edit.draftId } : {}),
-        ...(edit.id ? { expectedStock: edit.stock } : {}),
+        ...(edit.id ? { expectedStock: edit.stock || 0 } : {}),
         ...(edit.images ? { images: edit.images } : {}),
+        ...(edit.variants ? { variants: edit.variants } : {}),
         ...f,
-        price: +f.price,
-        original_price: +f.original_price,
-        stock: +f.stock,
+        price: f.price ? +f.price : autoPrice,
+        original_price: f.original_price ? +f.original_price : autoOriginalPrice,
+        stock: f.stock ? +f.stock : autoStock,
         active: +f.active,
       };
       await action(
@@ -1086,18 +1258,24 @@ function Management({ section }) {
                 <div>
                   <strong>{r.name}</strong>
                   <small>
-                    {r.category} · {r.firmness}
+                    {r.category}{r.badge ? ` · ${r.badge}` : ""}
                   </small>
                 </div>
               </div>
             </td>
             <td>
               <strong>{money(r.price)}</strong>
-              <small className="strike">{money(r.original_price)}</small>
+              {r.original_price ? (
+                <small className="strike">{money(r.original_price)}</small>
+              ) : null}
             </td>
             <td>
-              <span className={r.stock < 20 ? "stock-low" : ""}>
-                {r.stock} in stock
+              <span className={r.stock <= 5 ? "stock-low" : r.stock <= 0 ? "stock-out" : ""}>
+                {r.stock === 0
+                  ? "Out of stock"
+                  : r.stock <= 5
+                    ? `Only ${r.stock} left`
+                    : `${r.stock} in stock`}
               </span>
             </td>
             <td>
@@ -1313,8 +1491,18 @@ function Management({ section }) {
             disabled={!rows.length}
           >
             <Download size={16} />
-            Export
+            Export CSV
           </button>
+          {section === "products" && (
+            <button
+              className="btn admin-outline"
+              onClick={() => exportPDF(rows, "Product Catalog")}
+              disabled={!rows.length}
+            >
+              <FileText size={16} />
+              Export PDF
+            </button>
+          )}
           {addable && (
             <button className="btn admin-primary" onClick={() => setEdit({})}>
               <Plus size={16} />
@@ -1370,6 +1558,26 @@ function Management({ section }) {
         </div>
       )}
       <section className="admin-panel management-panel">
+        {section === "products" && (
+          <div className="product-filter-tabs">
+            {["All", "Active", "Archived"].map((tab) => (
+              <button
+                key={tab}
+                className={`filter-tab ${filter === tab ? "active" : ""}`}
+                onClick={() => setFilter(tab)}
+              >
+                {tab}
+                <span className="tab-count">
+                  {tab === "All"
+                    ? data.length
+                    : tab === "Active"
+                      ? data.filter((d) => d.active).length
+                      : data.filter((d) => !d.active).length}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="management-toolbar">
           <div className="search-input">
             <Search size={17} />
@@ -1386,6 +1594,24 @@ function Management({ section }) {
             )}
           </div>
           <div>
+            {section === "products" && (
+              <div className="view-toggle">
+                <button
+                  className={view === "table" ? "active" : ""}
+                  onClick={() => setView("table")}
+                  title="Table view"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="3" rx="1" fill="currentColor"/><rect x="1" y="6.5" width="14" height="3" rx="1" fill="currentColor"/><rect x="1" y="12" width="14" height="3" rx="1" fill="currentColor"/></svg>
+                </button>
+                <button
+                  className={view === "grid" ? "active" : ""}
+                  onClick={() => setView("grid")}
+                  title="Card view"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/></svg>
+                </button>
+              </div>
+            )}
             <select
               aria-label="Filter records"
               value={filter}
@@ -1431,6 +1657,53 @@ function Management({ section }) {
             <button onClick={() => setSelected([])}>Clear selection</button>
           </div>
         )}
+        {section === "products" && view === "grid" ? (
+          <div className="product-card-grid">
+            {visible.map((r) => (
+              <div
+                key={r.id}
+                className="product-card"
+                onClick={async () => {
+                  try {
+                    const detail = await api("/products/" + r.id);
+                    setEdit({ ...r, ...detail });
+                  } catch {
+                    setEdit(r);
+                  }
+                }}
+              >
+                <div className="product-card-img">
+                  <img src={r.image} alt={r.name} />
+                  {!r.active && <span className="card-archived-badge">Archived</span>}
+                  {r.badge && <span className="card-badge">{r.badge}</span>}
+                </div>
+                <div className="product-card-body">
+                  <h4>{r.name}</h4>
+                  <p className="card-subtitle">{r.subtitle || r.category}</p>
+                  <div className="card-price-row">
+                    <strong>{money(r.price)}</strong>
+                    {r.original_price ? (
+                      <span className="card-mrp">{money(r.original_price)}</span>
+                    ) : null}
+                  </div>
+                  <div className="card-meta">
+                    <span className={`card-stock ${r.stock <= 0 ? "out" : r.stock <= 5 ? "low" : "ok"}`}>
+                      {r.stock <= 0 ? "Out of stock" : r.stock <= 5 ? `Only ${r.stock} left` : `${r.stock} in stock`}
+                    </span>
+                    <Status value={r.active ? "Active" : "Archived"} />
+                  </div>
+                </div>
+              </div>
+            ))}
+            {visible.length === 0 && (
+              <div className="product-card-empty">
+                <Package size={40} />
+                <h3>No products found</h3>
+                <p>Try a different search or filter.</p>
+              </div>
+            )}
+          </div>
+        ) : (
         <div className="table-wrap">
           <table
             className={
@@ -1525,7 +1798,19 @@ function Management({ section }) {
                       ) : (
                         <button
                           className="small-btn"
-                          onClick={() => setEdit(r)}
+                          onClick={async () => {
+                            if (section === "products" && r.id) {
+                              // Fetch full product with variants
+                              try {
+                                const detail = await api("/products/" + r.id);
+                                setEdit({ ...r, ...detail });
+                              } catch {
+                                setEdit(r);
+                              }
+                            } else {
+                              setEdit(r);
+                            }
+                          }}
                         >
                           {["orders", "customers", "staff", "support"].includes(
                             section,
@@ -1544,7 +1829,8 @@ function Management({ section }) {
             </tbody>
           </table>
         </div>
-        {!visible.length && (
+        )}
+        {!visible.length && view === "table" && (
           <Empty
             icon={Search}
             title="Nothing matches just yet."
@@ -1576,136 +1862,57 @@ function Management({ section }) {
           title={
             section === "products"
               ? edit.id
-                ? "Edit " + edit.name
-                : "A new kind of comfort"
+                ? "Edit Product"
+                : "Add New Product"
               : section === "orders"
                 ? `Order ${edit.id}`
                 : section === "inventory"
-                  ? `Adjust ${edit.name}`
+                  ? `Adjust Stock — ${edit.name}`
                   : section === "content"
-                    ? "Your content studio"
+                    ? "Edit Content"
                     : section === "audit"
-                      ? "A clear record"
+                      ? "Audit Details"
                       : section === "staff"
                         ? edit.id
-                          ? "Team member details"
-                          : "Welcome someone new"
+                          ? "Edit Team Member"
+                          : "Add Team Member"
                         : section === "customers"
-                          ? "A little about your customer"
+                          ? "Customer Details"
                           : section === "reviews"
-                            ? "Listen. Respond. Build trust."
+                            ? "Review Details"
                             : section === "support"
-                              ? edit.subject
+                              ? edit.subject || "Support Ticket"
                               : section === "categories"
-                                ? "A new collection"
-                                : "Create a little extra value"
+                                ? edit.id ? "Edit Category" : "Add Category"
+                                : edit.id ? "Edit Coupon" : "Create Coupon"
           }
           onClose={() => setEdit(null)}
         >
           <form className="form-stack admin-editor" onSubmit={save}>
             {section === "products" && (
               <>
-                <MediaUpload
-                  label="Main product image"
+                <MultiImageUpload
+                  images={edit.images || (edit.image ? [edit.image] : [])}
+                  mainImage={edit.image || ""}
+                  maxImages={15}
                   purpose="product"
                   entityId={edit.id || edit.draftId}
                   assetName={(input) =>
-                    input.form?.elements.namedItem("name")?.value ||
+                    input.form?.elements?.namedItem?.("name")?.value ||
                     edit.name ||
                     "New product"
                   }
-                  value={edit.image || "/images/essential.webp"}
                   disabled={busy}
                   onBusy={setBusy}
-                  onChange={(r) =>
+                  onChange={(newImages, newMain) =>
                     setEdit((old) => ({
                       ...old,
-                      draftId: old.id ? undefined : r.entityId,
-                      image: r.url,
-                      images: [
-                        r.url,
-                        ...(old.images || []).filter(
-                          (url) => url !== old.image && url !== r.url,
-                        ),
-                      ],
+                      draftId: old.id ? undefined : old.draftId,
+                      image: newMain,
+                      images: newImages,
                     }))
                   }
                 />
-                <details className="product-gallery-editor">
-                  <summary>
-                    Product gallery · {edit.images?.length || 1} images
-                  </summary>
-                  <div className="gallery-editor-grid">
-                    {(
-                      edit.images || [edit.image || "/images/essential.webp"]
-                    ).map((url, index) => (
-                      <div key={url}>
-                        <img src={url} alt={"Gallery image " + (index + 1)} />
-                        <button
-                          type="button"
-                          className="text-link"
-                          onClick={() =>
-                            setEdit((old) => ({
-                              ...old,
-                              image: url,
-                              images: [
-                                url,
-                                ...(old.images || []).filter((u) => u !== url),
-                              ],
-                            }))
-                          }
-                        >
-                          Make main
-                        </button>
-                        {url !== edit.image && (
-                          <button
-                            type="button"
-                            className="text-link"
-                            onClick={() =>
-                              setEdit((old) => ({
-                                ...old,
-                                images: old.images.filter((u) => u !== url),
-                              }))
-                            }
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {(edit.images?.length || 0) < 12 && (
-                    <MediaUpload
-                      label="Gallery image"
-                      purpose="product"
-                      entityId={edit.id || edit.draftId}
-                      assetName={(input) =>
-                        input.form?.elements.namedItem("name")?.value ||
-                        edit.name ||
-                        "New product"
-                      }
-                      disabled={busy}
-                      onBusy={setBusy}
-                      onChange={(r) =>
-                        setEdit((old) => ({
-                          ...old,
-                          draftId: old.id ? undefined : r.entityId,
-                          images: [
-                            ...(old.images || [
-                              old.image || "/images/essential.webp",
-                            ]),
-                            r.url,
-                          ],
-                        }))
-                      }
-                    />
-                  )}
-                  <p className="fine-print">
-                    Save to publish. Removing an image here only removes its
-                    shop reference; it does not delete the hosted file from
-                    ImgBB.
-                  </p>
-                </details>
                 <input
                   type="hidden"
                   name="image"
@@ -1720,26 +1927,9 @@ function Management({ section }) {
                     defaultValue={edit.name}
                   />
                   <Field
-                    label="Short description"
+                    label="Short description (optional)"
                     name="subtitle"
                     defaultValue={edit.subtitle}
-                    required
-                  />
-                  <Field
-                    label="Sale price (INR)"
-                    name="price"
-                    type="number"
-                    min={1}
-                    defaultValue={edit.price}
-                    required
-                  />
-                  <Field
-                    label="Original price (INR)"
-                    name="original_price"
-                    type="number"
-                    min={1}
-                    defaultValue={edit.original_price}
-                    required
                   />
                   <Field label="Category">
                     <select
@@ -1751,47 +1941,30 @@ function Management({ section }) {
                       ))}
                     </select>
                   </Field>
-                  <Field
-                    label="Materials"
-                    name="material"
-                    defaultValue={edit.material || "Adaptive memory foam"}
-                    required
-                    minLength={2}
-                  />
-                  <Field label="Comfort feel">
-                    <select
-                      name="firmness"
-                      defaultValue={edit.firmness || "Medium"}
-                    >
-                      {["Soft", "Medium", "Firm"].map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
+                  <Field label="Materials">
+                    <input
+                      name="material"
+                      defaultValue={edit.material || "Memory foam"}
+                      placeholder="e.g. Memory foam, Latex"
+                    />
                   </Field>
-                  <Field label="Base height">
-                    <select
-                      name="thickness"
-                      defaultValue={edit.thickness || "8"}
-                    >
-                      {["1", "6", "8", "10"].map((s) => (
-                        <option key={s} value={s}>
-                          {s === "1" ? "Standard accessory" : s + " inches"}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field
-                    label="Stock on hand"
-                    name="stock"
-                    type="number"
-                    min={0}
-                    defaultValue={edit.stock ?? 0}
-                    required
-                  />
+                </div>
+
+                {/* Size & Price Grid */}
+                <SizePriceGrid
+                  variants={edit.variants || []}
+                  disabled={busy}
+                  onChange={(newVariants) =>
+                    setEdit((old) => ({ ...old, variants: newVariants }))
+                  }
+                />
+
+                <div className="form-grid">
                   <Field
                     label="Product badge"
                     name="badge"
                     defaultValue={edit.badge || ""}
+                    placeholder="e.g. Bestseller, New"
                   />
                   <Field label="Visibility">
                     <select name="active" defaultValue={edit.active ?? 1}>
@@ -1805,17 +1978,9 @@ function Management({ section }) {
                     rows={4}
                     name="description"
                     defaultValue={edit.description || ""}
+                    placeholder="Describe the product in detail..."
                   />
                 </Field>
-                <div className="admin-info-note">
-                  <Layers size={17} />
-                  <span>
-                    36 size/height/firmness combinations are generated for
-                    mattresses; accessories use one standard variant. Prices
-                    come from the Queen base price. Shared stock is deducted
-                    transactionally when an order is placed.
-                  </span>
-                </div>
                 {edit.id && (
                   <div className="editor-actions">
                     <button
