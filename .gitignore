@@ -1,39 +1,70 @@
-# Dependencies
-node_modules/
-
-# Environment variables (contains secrets — never commit)
-.env
-.env.local
-.env.*.local
-
-# Database files (local SQLite — never commit)
-data/
-*.sqlite
-*.sqlite-wal
-*.sqlite-shm
-
-# Build output
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
 dist/
+build/
+*.class
+*.exe
+*.dll
+*.so
+*.a
+*.out
 
-# IDE / Editor
-.vscode/
-.idea/
+# Dependencies
+.venv/
+venv/
+node_modules/
+.mypy_cache/
+.pytest_cache/
+target/
+.gradle/
+
+# Logs and temp files
+*.log
+*.tmp
 *.swp
 *.swo
-*~
 
-# OS files
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# System files
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-npm-debug.log*
-
-# Test / QA artifacts
-qa/*.json
+# Coverage
 coverage/
+htmlcov/
+.coverage
 
-# Misc
-.cache/
+# Compressed files
+*.zip
+*.gz
+*.tar
 *.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst

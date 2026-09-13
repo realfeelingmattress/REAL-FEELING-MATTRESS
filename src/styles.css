@@ -13384,6 +13384,81 @@ html::-webkit-scrollbar {
   }
 
   /* Quick actions */
+.quick-actions-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 17px;
+  margin-bottom: 22px;
+}
+.quick-action-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  transition: all 0.18s ease;
+  text-decoration: none;
+  color: var(--text);
+}
+.quick-action-card:hover {
+  border-color: var(--brand);
+  background: var(--green-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+.qa-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.qa-icon svg {
+  stroke-width: 1.4;
+}
+.qa-green {
+  background: #e9eee5;
+  color: #5a7f62;
+}
+.qa-blue {
+  background: #e5eff8;
+  color: #4a6fa5;
+}
+.qa-orange {
+  background: #f9ede5;
+  color: #c4794a;
+}
+.qa-purple {
+  background: #f0e9f5;
+  color: #8b5fa5;
+}
+.quick-action-card strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+.quick-action-card span {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.quick-action-card > svg {
+  margin-left: auto;
+  color: var(--muted);
+  opacity: 0.6;
+}
+.quick-action-card:hover > svg {
+  color: var(--brand);
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  /* Quick actions */
   .quick-actions-row {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
